@@ -18,7 +18,11 @@ class MonologueFrame:
         parts = []
         # Logit Lens
         topk_pairs = [(tokenizer.decode([tid]).strip() or str(tid), p) for tid, p in zip(self.topk_ids, self.topk_probs)]
-        ll = ",".join([f"('{t.replace('\"','')}',{p:.3f})" for t, p in topk_pairs])
+        # Avoid backslashes inside f-strings by normalizing tokens first
+        def _sanitize_token(tok: str) -> str:
+            return tok.replace('"', '')
+
+        ll = ",".join([f"('{_sanitize_token(t)}',{p:.3f})" for t, p in topk_pairs])
         parts.append(f"[LOGIT_LENS:TOP_{len(self.topk_ids)}:{ll}]")
 
         # Attention summary (only show a few strongest heads)
@@ -103,6 +107,8 @@ class ProbeEngine:
         B, T = 1, seq_len
         last_pos = T - 1
         for layer_idx, a in enumerate(attns):
+            if a is None:
+                continue
             # a: [B, H, T, T]
             a_last = a[0, :, last_pos, :]  # [H, T]
             head_max, head_idx = torch.max(a_last, dim=-1)  # [H]
