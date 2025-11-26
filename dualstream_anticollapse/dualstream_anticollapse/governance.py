@@ -1,29 +1,33 @@
 
 import os, json, hashlib, time, pickle
 from dataclasses import dataclass, asdict
-from typing import Dict, Any, Optional
+from pathlib import Path
+from typing import Dict, Any, Optional, Union
 
-def _sha256_path(path: str) -> str:
+def _sha256_path(path: Union[str, Path]) -> str:
+    path = Path(path)
     h = hashlib.sha256()
     with open(path, "rb") as f:
         for chunk in iter(lambda: f.read(8192), b""):
             h.update(chunk)
     return h.hexdigest()
 
-def save_model(model, path: str, meta: Dict[str, Any]):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+def save_model(model, path: Union[str, Path], meta: Dict[str, Any]):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
     try:
         import joblib
         joblib.dump(model, path)
     except Exception:
         with open(path, "wb") as f:
             pickle.dump(model, f)
-    record = {"path": path, "sha256": _sha256_path(path), "saved_at": time.time(), **meta}
-    with open(path + ".meta.json", "w") as mf:
+    record = {"path": str(path), "sha256": _sha256_path(path), "saved_at": time.time(), **meta}
+    with open(path.with_suffix(path.suffix + ".meta.json"), "w") as mf:
         json.dump(record, mf, indent=2)
     return record
 
-def load_model(path: str):
+def load_model(path: Union[str, Path]):
+    path = Path(path)
     try:
         import joblib
         return joblib.load(path)

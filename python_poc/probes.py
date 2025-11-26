@@ -17,8 +17,16 @@ class MonologueFrame:
     def to_string(self, tokenizer) -> str:
         parts = []
         # Logit Lens
-        topk_pairs = [(tokenizer.decode([tid]).strip() or str(tid), p) for tid, p in zip(self.topk_ids, self.topk_probs)]
-        ll = ",".join([f"('{t.replace('\"','')}',{p:.3f})" for t, p in topk_pairs])
+        topk_pairs = [
+            (tokenizer.decode([tid]).strip() or str(tid), p)
+            for tid, p in zip(self.topk_ids, self.topk_probs)
+        ]
+
+        ll_parts = []
+        for token_text, prob in topk_pairs:
+            cleaned_text = token_text.replace("\"", "")
+            ll_parts.append(f"('{cleaned_text}',{prob:.3f})")
+        ll = ",".join(ll_parts)
         parts.append(f"[LOGIT_LENS:TOP_{len(self.topk_ids)}:{ll}]")
 
         # Attention summary (only show a few strongest heads)
@@ -103,6 +111,9 @@ class ProbeEngine:
         B, T = 1, seq_len
         last_pos = T - 1
         for layer_idx, a in enumerate(attns):
+            if a is None:
+                # Some model implementations may omit attention maps
+                continue
             # a: [B, H, T, T]
             a_last = a[0, :, last_pos, :]  # [H, T]
             head_max, head_idx = torch.max(a_last, dim=-1)  # [H]

@@ -91,13 +91,16 @@ class ModelMonitor:
             results.append(out)
         return results
 
-
-def check_outliers(self, df):
-    feats = self._feature_cols(df)
-    out = zscore_outliers(df, feats, z=3.5)
-    if out:
-        from .alerts import emit
-        emit("outliers_detected", {"columns": list(out.keys()), "counts": {k: len(v) for k,v in out.items() }}, sink=self.alert_sink)
-        self.state.events.append({"type":"outliers", "details": {k: len(v) for k,v in out.items()}})
-        return True, out
-    return False, {}
+    def check_outliers(self, df):
+        feats = self._feature_cols(df)
+        out = zscore_outliers(df, feats, z=3.5)
+        if out:
+            from .alerts import emit
+            emit(
+                "outliers_detected",
+                {"columns": list(out.keys()), "counts": {k: len(v) for k, v in out.items()}},
+                sink=self.alert_sink,
+            )
+            self.state.events.append({"type": "outliers", "details": {k: len(v) for k, v in out.items()}})
+            return True, out
+        return False, {}
